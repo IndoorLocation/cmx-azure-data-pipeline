@@ -12,7 +12,7 @@ As you can see on the figure above, the data pipeline is composed by several ser
 
 - Cisco CMX Notifications Listener: a Node.js web app running on Web App for Containers. This app is responsible for getting the notifications from the Cisco CMX equipments, convert the information into standard indoor location format, store it into Redis and forward it to Azure Event Hub to enter the data pipeline.
 
-- An Azure Redis Cache that stores the latest position for each devices
+- An Azure Redis Cache that stores the latest position for each device
 
 - An Azure Event Hub that represents the entry point for the data pipeline
 
