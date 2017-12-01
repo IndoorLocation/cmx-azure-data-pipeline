@@ -1,0 +1,517 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "storageAccountType": {
+        "type": "string",
+        "defaultValue": "Standard_LRS",
+        "allowedValues": [
+          "Standard_LRS",
+          "Standard_GRS",
+          "Standard_ZRS",
+          "Premium_LRS"
+        ],
+        "metadata": {
+          "description": "Storage Account type"
+        }
+      },
+      "pipelineResourceNamesPrefix": {
+          "type": "string",
+          "metadata": {
+              "description":"Prefix for all created resources"
+          }
+      },
+      "eventHubsNamespaceSkuName": {
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+              "Basic",
+              "Standard",
+              "Premium"
+          ],
+          "metadata": {
+              "description": "Name of this SKU. - Basic, Standard, Premium"
+          }
+      },
+      "eventHubsNamespaceSkuTier": {
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+              "Basic",
+              "Standard",
+              "Premium"
+          ],
+          "metadata": {
+              "description": "The billing tier of this particular SKU. - Basic, Standard, Premium"
+          }
+      },
+      "eventHubsNamespaceIsAutoInflateEnabled": {
+          "type": "bool",
+          "defaultValue": false,
+          "metadata": {
+              "description": "Turn on/off the auto-inflate feature on the namespace"
+          }
+      },
+      "eventHubsNamespaceMaximumThroughputUnits": {
+          "type": "string",
+          "defaultValue": "1",
+          "metadata": {
+              "description":"Set the maximum throughput units (if auto inflate is enabled)"
+          }
+      },
+      "cosmosDbSku":{
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+              "Standard"
+          ],
+          "metadata": {
+              "description":"Database account offert type. Standard"
+          }
+      },
+      "appServiceSku":{
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+              "Basic",
+              "Standard",
+              "Premium"
+          ],
+          "metadata": {
+              "description":"Service tier of the resource SKU."
+          }
+      },
+      "appServiceSkuCode": {
+          "type": "string",
+          "defaultValue": "S1",
+          "allowedValues": [
+              "B1",
+              "B2",
+              "B3",
+              "S1",
+              "S2",
+              "S3",
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+          ],
+          "metadata": {
+              "description":"Family code of the resource SKU."
+          }
+      },
+      "appServiceWorkerSize":{
+          "type": "string",
+          "defaultValue": "0",
+          "allowedValues": [
+              "0"
+          ],
+          "metadata": {
+              "description":"Size specifier of the resource SKU."
+          }
+      },
+      "cmxListenerDockerImageName":{
+          "type": "string",
+          "defaultValue": "jcorioland/cmx-listener:latest",
+          "metadata": {
+              "description": "Docker image to use to deploy the CMX listener web app."
+          }
+      },
+      "redisCacheSku":{
+          "type": "string",
+          "defaultValue": "Standard",
+          "allowedValues": [
+              "Basic",
+              "Standard",
+              "Premium"
+          ],
+          "metadata": {
+              "description": "The type of Redis cache to deploy"
+          }
+      },
+      "redisCacheFamily":{
+          "type": "string",
+          "defaultValue": "C",
+          "allowedValues": [
+              "C",
+              "P"
+          ],
+          "metadata": {
+              "description": "The SKU family to use"
+          }
+      },
+      "redisCacheCapacity":{
+          "type":"int",
+          "defaultValue": 1,
+          "allowedValues": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+          ],
+          "metadata": {
+              "description": "The size of the Redis cache to deploy"
+          }
+      }
+    },
+    "variables": {
+        "storageAccountName": "[concat(parameters('pipelineResourceNamesPrefix'), uniqueString(resourceGroup().id))]",
+        "eventHubsNamespaceName": "[concat(parameters('pipelineResourceNamesPrefix'), uniqueString(resourceGroup().id))]",
+        "eventHubName": "[concat(parameters('pipelineResourceNamesPrefix'), uniqueString(resourceGroup().id))]",
+        "eventHubNamespaceAuthRuleResourceId": "[resourceId('Microsoft.EventHub/namespaces/authorizationRules', variables('eventHubsNamespaceName'), 'RootManageSharedAccessKey')]",
+        "cosmosDbAccountName":"[concat(parameters('pipelineResourceNamesPrefix'), uniqueString(resourceGroup().id))]",
+        "asaToCsvBlobJobName":"[concat('asaToCsv-', uniqueString(resourceGroup().id))]",
+        "asaToCosmosDbJobName":"[concat('asaToCosmosDb-', uniqueString(resourceGroup().id))]",
+        "webAppHostingPlanName":"[concat('appplan-', uniqueString(resourceGroup().id))]",
+        "webAppName":"[concat('cmxlistener-', uniqueString(resourceGroup().id))]",
+        "redisCacheName":"[concat(parameters('pipelineResourceNamesPrefix'), uniqueString(resourceGroup().id))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storageAccountName')]",
+            "apiVersion": "2017-06-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "kind": "Storage", 
+            "properties": {
+            }
+        },
+        {
+            "type":"Microsoft.EventHub/namespaces",
+            "apiVersion": "2015-08-01",
+            "sku": {
+            "name":"[parameters('eventHubsNamespaceSkuName')]",
+            "tier":"[parameters('eventHubsNamespaceSkuTier')]"   
+            },
+            "name": "[variables('eventHubsNamespaceName')]",
+            "location": "[resourceGroup().location]", 
+            "properties": {
+                "isAutoInflateEnabled": "[parameters('eventHubsNamespaceIsAutoInflateEnabled')]",
+                "maximumThroughputUnits": "[if(parameters('eventHubsNamespaceIsAutoInflateEnabled'), parameters('eventHubsNamespaceMaximumThroughputUnits'), json('null'))]"
+            },
+            "resources": [
+                {
+                    "type": "eventhubs",
+                    "apiVersion": "2015-08-01",
+                    "location": "[resourceGroup().location]",
+                    "name": "[variables('eventHubName')]",
+                    "dependsOn":[
+                        "[concat('Microsoft.EventHub/namespaces/', variables('eventHubsNamespaceName'))]"
+                    ],
+                    "properties":{
+                        "path": "[variables('eventHubName')]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.DocumentDB/databaseAccounts",
+            "apiVersion": "2015-04-08",
+            "location":"[resourceGroup().location]",
+            "name":"[variables('cosmosDbAccountName')]",
+            "properties": {
+                    "name":"[variables('cosmosDbAccountName')]",
+                    "databaseAccountOfferType":"[parameters('cosmosDbSku')]",
+                    "locations":[
+                        {
+                            "locationName":"[resourceGroup().location]",
+                            "failoverPriority": 0
+                        }
+                    ]
+            }
+        },
+        {
+            "type": "Microsoft.StreamAnalytics/streamingjobs",
+            "apiVersion": "2016-03-01",
+            "location":"[resourceGroup().location]",
+            "name": "[variables('asaToCsvBlobJobName')]",
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+                "[concat('Microsoft.EventHub/namespaces/', variables('eventHubsNamespaceName'), '/eventhubs/', variables('eventHubName'))]"
+            ],
+            "properties":{
+                    "sku":{
+                        "name":"Standard"
+                    },
+                    "outputErrorPolicy": "Stop",
+                    "eventsOutOfOrderPolicy": "Adjust",
+                    "eventsOutOfOrderMaxDelayInSeconds": 0,
+                    "eventsLateArrivalMaxDelayInSeconds": 5,
+                    "dataLocale": "en-US",
+                    "inputs":[
+                        {
+                            "name": "EVENTHUB",
+                            "properties":{
+                                "datasource":{
+                                    "type": "Microsoft.ServiceBus/EventHub",
+                                    "properties":{
+                                        "eventHubName": "[variables('eventHubName')]",
+                                        "serviceBusNamespace": "[variables('eventHubsNamespaceName')]",
+                                        "sharedAccessPolicyKey": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).primaryKey]",
+                                        "sharedAccessPolicyName": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).keyName]"
+                                    }
+                                },
+                                "type": "Stream",
+                                "serialization":{
+                                    "properties":{
+                                        "encoding":"UTF8"
+                                    },
+                                    "type": "Json"
+                                }
+                            }
+                        }
+                    ],
+                    "transformation":{
+                        "name": "transformation",
+                        "properties":{
+                            "query": "SELECT * INTO [BLOBSTORAGE] FROM [EVENTHUB]",
+                            "streamingUnits": 1
+                        }
+                    },
+                    "outputs":[
+                        {
+                            "name": "BLOBSTORAGE",
+                            "properties":{
+                                "datasource":{
+                                    "type": "Microsoft.Storage/Blob",
+                                    "properties":{
+                                        "container": "csv",
+                                        "pathPattern": "{date}",
+                                        "dateFormat": "yyyy/MM/dd",
+                                        "timeFormat": "HH",
+                                        "storageAccounts":[
+                                            {
+                                                "accountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).keys[0].value]",
+                                                "accountName": "[variables('storageAccountName')]"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "serialization":{
+                                    "properties":{
+                                        "encoding":"UTF8",
+                                        "fieldDelimiter": ","
+                                    },
+                                    "type": "Csv"
+                                }
+                            }
+                        }
+                    ]
+            }
+        },
+        {
+            "type": "Microsoft.StreamAnalytics/streamingjobs",
+            "apiVersion": "2016-03-01",
+            "location":"[resourceGroup().location]",
+            "name": "[variables('asaToCosmosDbJobName')]",
+            "dependsOn": [
+                "[concat('Microsoft.DocumentDB/databaseAccounts/', variables('cosmosDbAccountName'))]",
+                "[concat('Microsoft.EventHub/namespaces/', variables('eventHubsNamespaceName'), '/eventhubs/', variables('eventHubName'))]"
+            ],
+            "properties":{
+                    "sku":{
+                        "name":"Standard"
+                    },
+                    "outputErrorPolicy": "Stop",
+                    "eventsOutOfOrderPolicy": "Adjust",
+                    "eventsOutOfOrderMaxDelayInSeconds": 0,
+                    "eventsLateArrivalMaxDelayInSeconds": 5,
+                    "dataLocale": "en-US",
+                    "inputs":[
+                        {
+                            "name": "EVENTHUB",
+                            "properties":{
+                                "datasource":{
+                                    "type": "Microsoft.ServiceBus/EventHub",
+                                    "properties":{
+                                        "eventHubName": "[variables('eventHubName')]",
+                                        "serviceBusNamespace": "[variables('eventHubsNamespaceName')]",
+                                        "sharedAccessPolicyKey": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).primaryKey]",
+                                        "sharedAccessPolicyName": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).keyName]"
+                                    }
+                                },
+                                "type": "Stream",
+                                "serialization":{
+                                    "properties":{
+                                        "encoding":"UTF8"
+                                    },
+                                    "type": "Json"
+                                }
+                            }
+                        }
+                    ],
+                    "transformation":{
+                        "name": "transformation",
+                        "properties":{
+                            "query": "SELECT * INTO [COSMOSDB] FROM [EVENTHUB]",
+                            "streamingUnits": 1
+                        }
+                    },
+                    "outputs":[
+                        {
+                            "name": "COSMOSDB",
+                            "properties":{
+                                "datasource":{
+                                "type": "Microsoft.Storage/DocumentDB",
+                                "properties":{
+                                        "accountId": "[variables('cosmosDbAccountName')]",
+                                        "accountKey": "[listKeys(resourceId('Microsoft.DocumentDb/databaseAccounts', variables('cosmosDbAccountName')), providers('Microsoft.DocumentDb', 'databaseAccounts').apiVersions[0]).primaryMasterKey]",
+                                        "collectionNamePattern": "records",
+                                        "database": "records",
+                                        "documentId": "id"
+                                }
+                                },
+                                "serialization":{
+                                    "properties":{
+                                        "encoding":"UTF8"
+                                    },
+                                    "type": "Json"
+                                }
+                            }
+                        }
+                    ]
+            }
+        },
+        {
+            "apiVersion": "2015-08-01",
+            "type": "Microsoft.Cache/Redis",
+            "location": "[resourceGroup().location]",
+            "name": "[variables('redisCacheName')]",
+            "properties": {
+                "sku":{
+                    "name":"[parameters('redisCacheSku')]",
+                    "family":"[parameters('redisCacheFamily')]",
+                    "capacity":"[parameters('redisCacheCapacity')]"
+                },
+                "redisConfiguration": {},
+                "enableNonSslPort": false
+            }
+        },
+        {
+            "apiVersion": "2016-08-01",
+            "type":"Microsoft.Web/sites",
+            "name": "[variables('webAppName')]",
+            "location":"[resourceGroup().location]",
+            "dependsOn": [
+                "[variables('webAppHostingPlanName')]",
+                "[concat('Microsoft.EventHub/namespaces/', variables('eventHubsNamespaceName'), '/eventhubs/', variables('eventHubName'))]",
+                "[concat('Microsoft.Cache/Redis/', variables('redisCacheName'))]"
+            ],
+            "properties":{
+                "name":"[variables('webAppName')]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+                            "value": "false"
+                        },
+                        {
+                            "name": "SESSIONS_REDIS_HOST",
+                            "value": "[concat(variables('redisCacheName'),'.redis.cache.windows.net')]"
+                        },
+                        {
+                            "name": "SESSIONS_REDIS_PORT",
+                            "value": ""
+                        },
+                        {
+                            "name": "SESSIONS_REDIS_AUTH",
+                            "value": "[listKeys(resourceId('Microsoft.Cache/Redis', variables('redisCacheName')), '2015-08-01').primaryKey]"
+                        },
+                        {
+                            "name": "FLOORS_CONFIGURATION",
+                            "value" : "[concat('[', '{\"hierarchyName\":\"CiscoCampus>Building 9>IDEAS!\",\"dimension\":{\"length\":74.1,\"width\":39,\"height\":15,\"offsetX\":0,\"offsetY\":0,\"unit\":\"FEET\"},\"floor\":1,\"corners\":[{\"lng\":3.0197530027645363,\"lat\":50.54409548336825},{\"lng\":3.0198095304884385,\"lat\":50.54405333279014},{\"lng\":3.0196268856525426,\"lat\":50.54402718002255},{\"lng\":3.019683413376444,\"lat\":50.54398502938338}]}', ']')]"
+                        }
+                        ,
+                        {
+                            "name": "AZURE_EVENT_HUB_ENABLED",
+                            "value": "true"
+                        },
+                        {
+                            "name": "AZURE_EVENT_HUB_SERVICE_BUS_URI",
+                            "value": "[concat(variables('eventHubsNamespaceName'), '.servicebus.windows.net')]"
+                        },
+                        {
+                            "name": "AZURE_EVENT_HUB_PATH",
+                            "value": "[variables('eventHubName')]"
+                        },
+                        {
+                            "name": "AZURE_EVENT_HUB_SA_NAME",
+                            "value": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).keyName]"
+                        },
+                        {
+                            "name": "AZURE_EVENT_HUB_SA_KEY",
+                            "value": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).primaryKey]"
+                        }
+                    ],
+                    "appCommandLine": "",
+                    "linuxFxVersion": "[concat('DOCKER|', parameters('cmxListenerDockerImageName'))]"
+                },
+                "serverFarmId": "[variables('webAppHostingPlanName')]"
+            }
+        },
+        {
+            "apiVersion":"2016-09-01",
+            "name": "[variables('webAppHostingPlanName')]",
+            "type": "Microsoft.Web/serverfarms",
+            "location": "[resourceGroup().location]",
+            "properties":{
+                "name": "[variables('webAppHostingPlanName')]",
+                "workerSizeId": "[parameters('appServiceWorkerSize')]",
+                "reserved": true,
+                "numberOfWorkers": "1"
+            },
+            "sku":{
+                "tier": "[parameters('appServiceSku')]",
+                "name": "[parameters('appServiceSkuCode')]"
+            },
+            "kind":"Linux"
+        }
+    ],
+    "outputs": {
+        "storageAccountName": {
+            "type": "string",
+            "value": "[variables('storageAccountName')]"
+        },
+        "storageAccountKey": {
+            "type": "string",
+            "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), providers('Microsoft.Storage', 'storageAccounts').apiVersions[0]).keys[0].value]"
+        },
+        "eventHubsNamespaceName":{
+            "type": "string",
+            "value": "[variables('eventHubsNamespaceName')]"
+        },
+        "eventHubName":{
+            "type": "string",
+            "value": "[variables('eventHubName')]"
+        },
+        "eventHubsNamespaceConnectionString":{
+            "type": "string",
+            "value": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).primaryConnectionString]"
+        },
+        "eventHubsSharedAccessPolicyPrimaryKey":{
+            "type": "string",
+            "value": "[listKeys(variables('eventHubNamespaceAuthRuleResourceId'), providers('Microsoft.EventHub', 'namespaces').apiVersions[0]).primaryKey]"
+        },
+        "cosmosDbEndpoint":{
+            "type": "string",
+            "value": "[reference(concat('Microsoft.DocumentDb/databaseAccounts/', variables('cosmosDbAccountName'))).documentEndpoint]"
+        },
+        "cosmosDbPrimaryKey":{
+            "type": "string",
+            "value": "[listKeys(resourceId('Microsoft.DocumentDb/databaseAccounts', variables('cosmosDbAccountName')), providers('Microsoft.DocumentDb', 'databaseAccounts').apiVersions[0]).primaryMasterKey]"
+        },
+        "redisHost":{
+            "type": "string",
+            "value": "[concat(variables('redisCacheName'),'.redis.cache.windows.net')]"
+        },
+        "redisPassword":{
+            "type": "string",
+            "value":"[listKeys(resourceId('Microsoft.Cache/Redis', variables('redisCacheName')), '2015-08-01').primaryKey]"
+        }
+    }
+}

@@ -1,0 +1,7 @@
+{
+    "itemDisplayName": "CMX Azure Data Pipeline",
+    "description": "This template deploys the Cisco CMX notifications listener together with real-time analytics and heatmaps on Azure.",
+    "summary": "This template deploys the Cisco CMX notifications listener together with real-time analytics and heatmaps on Azure.",
+    "githubUsername": "jcorioland",
+    "dateUpdated": "2017-12-01"
+}
