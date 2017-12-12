@@ -13,6 +13,33 @@
         },
         "eventHubsNamespaceSkuTier": {
             "value": "Standard"
+        },
+        "eventHubsNamespaceIsAutoInflateEnabled": {
+            "value": false
+        },
+        "cosmosDbSku": {
+            "value": "Standard"
+        },
+        "appServiceSku": {
+            "value": "Standard"
+        },
+        "appServiceSkuCode": {
+            "value": "S1"
+        },
+        "appServiceWorkerSize": {
+            "value": "0"
+        },
+        "cmxListenerDockerImageName": {
+            "value": "jcorioland/cmx-listener:latest"
+        },
+        "redisCacheSku": {
+            "value": "Standard"
+        },
+        "redisCacheFamily": {
+            "value": "C"
+        },
+        "redisCacheCapacity": {
+            "value": 1
         }
     }
   }
